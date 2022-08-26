@@ -26,6 +26,8 @@ const Tetris = Object.create(null);
  * @property {Tetris.Tetromino} next_tetromino The next piece to descend.
  * @property {number[]} position Where in the field is the current tetromino.
  * @property {Tetris.Score} score Information relating to the score of the game.
+ * @property {Tetris.Tetromino} held_tetromino
+ * @property {boolean} can_hold
  */
 
 /**
@@ -238,6 +240,7 @@ const all_tetrominos = [
  * @default
  */
 Tetris.field_height = 22;
+Tetris.mini_field_height = 6;
 
 /**
  * The visible height of a tetris field.
@@ -248,6 +251,7 @@ Tetris.field_height = 22;
  */
 Tetris.field_visible_height = 20;
 
+
 /**
  * The width of a tetris field.
  * @constant
@@ -255,6 +259,7 @@ Tetris.field_visible_height = 20;
  * @default
  */
 Tetris.field_width = 10;
+Tetris.mini_field_width = 6;
 
 const starting_position = [Math.floor(Tetris.field_width / 2) - 1, 0];
 
@@ -305,7 +310,9 @@ Tetris.new_game = function () {
         "game_over": false,
         "next_tetromino": next_tetromino,
         "position": starting_position,
-        "score": new_score()
+        "score": new_score(),
+        "held_tetromino": null, // This starts empty
+        "can_hold": true, // It's empty to start with so you can.... can_hold  :)
     };
 };
 
@@ -484,7 +491,13 @@ const drop_once = function (game) {
     if (is_blocked(game.field, game.current_tetromino, new_position)) {
         return game;
     }
+
     return R.mergeRight(game, {"position": new_position});
+    
+    // ^^ This is the same as doing this >>
+    // game.position = new_position
+    // return game
+    //  - but this is bad practice
 };
 
 /**
@@ -564,12 +577,13 @@ const clear_lines = R.pipe(
  * @returns {Tetris.Game}
  */
 Tetris.next_turn = function (game) {
+
     if (game.game_over) {
         return game;
     }
 
     const dropped_once = drop_once(game);
-    if (!R.equals(game, dropped_once)) {
+    if (!R.equals(game, dropped_once)) { 
         return dropped_once;
     }
 
@@ -594,7 +608,9 @@ Tetris.next_turn = function (game) {
         "game_over": false,
         "next_tetromino": next_tetromino,
         "position": starting_position,
-        "score": game.score
+        "score": game.score,
+        "held_tetromino": game.held_tetromino,
+        "can_hold": true,
     };
 };
 
@@ -608,4 +624,54 @@ Tetris.is_game_over = function (game) {
     return game.game_over;
 };
 
+
+
+
+
+/**
+ * hold function, takes a game, 
+ * and returns a new game with the current tetromino held. 
+ * @function
+ * @memberof Tetris
+ * @param {Tetris.Game} game
+ * @returns {Tetris.Game}
+ */
+Tetris.hold = function (game) { // Did this by comparing what we want to next_turn and other functions, copying stuff over 
+    if (game.game_over || !game.can_hold) { //! opposites a thing. (false to true) same as Not in python  // if we can't hold, return the original game object otherwise continue.
+        return game;
+    }
+    /*
+    let new_current_tetromino = null; 
+   
+    if (game.held_tetromino) { // basically saying if held_tetronimo not equal to null
+        new_current_tetromino = game.held_tetromino //we don't need "" because we referring to currrent_tetromino the variable not the object. OBJECT IS DICT
+    } 
+    else {
+        new_current_tetromino = game.next_tetromino
+    }
+    */
+   // THIS IS THE SAME AS THE LINE BELOW - Ternary 
+   
+    const new_current_tetromino = game.held_tetromino ? game.held_tetromino : game.next_tetromino //if game.held_tet exists (true ), let it equal game.held_tet, else let it equal game.next_tet. new_current_tet is equalt to the result of this.
+
+     // fixes the issue of the first block after c duplicating  
+    const [next_tetromino, bag] = game.bag(); //get the newly generate tet, stole this from earlier
+    const new_next_tetromino = game.held_tetromino ? game.next_tetromino : next_tetromino
+     //
+
+    return R.mergeRight(game, {
+        "bag": bag,
+        "held_tetromino": game.current_tetromino,
+        "can_hold": false,
+        "current_tetromino": new_current_tetromino,
+        "next_tetromino": new_next_tetromino,
+        "position": starting_position
+
+    });  //this replaces whatever is in game with what is written after
+};
+
+
+
 export default Object.freeze(Tetris);
+
+
